@@ -1,0 +1,14 @@
+{
+  "name": "electro-share",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/m-azra3l/electro-share.git",
+  "author": "Michael <gadreelazazel@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.7.4",
+    "crypto-js": "^4.2.0",
+    "electron": "^32.0.1",
+    "electron-builder": "^24.13.3"
+  }
+}
