@@ -1,7 +1,7 @@
 {
   "name": "electro-share",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "main.js",
   "repository": "https://github.com/m-azra3l/electro-share.git",
   "author": "Michael <gadreelazazel@gmail.com>",
   "license": "MIT",
