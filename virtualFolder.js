@@ -55,19 +55,17 @@ function addMacOSSymlink(folderName, targetPath) {
 // Function to handle OS-specific folder integration
 function integrateVirtualFolder() {
     const platform = os.platform();
-
+    
+    const folderName = 'ElectroShare';
     if (platform === 'win32') {
-        const folderName = 'My Sync Folder';
-        const executablePath = path.join(__dirname, 'path_to_your_electron_app.exe');
+        const executablePath = path.join(__dirname, 'C:\\ElectroShare\\ElectroShare.exe');
         addWindowsVirtualFolder(folderName, executablePath);
     } else if (platform === 'darwin') {
-        const folderName = 'MySyncFolder';
-        const targetPath = path.join(__dirname, 'path_to_managed_files');
+        const targetPath = path.join(__dirname, 'ElectroShare.app/Contents/MacOS/ElectroShare');
         addMacOSSymlink(folderName, targetPath);
     } else {
         console.log('Unsupported OS for virtual folder integration.');
     }
 }
 
-// Execute the integration when the app starts
-integrateVirtualFolder();
+module.exports = integrateVirtualFolder;
