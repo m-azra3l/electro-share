@@ -1,13 +1,35 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Electro Share</title>
 </head>
+
 <body>
     <h1>Electro Share</h1>
-    <button id="sync-button">Sync Files</button>
+    <p>This is a Proof of Concept for a desktop synchronization application.</p>
+    <div id="login-container">
+        <h2>Login</h2>
+        <form id="login-form">
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required><br><br>
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required><br><br>
+            <button type="submit">Login</button>
+        </form>
+        <p id="login-error" style="color: red; display: none;">Invalid credentials, please try again.</p>
+    </div>
+
+    <div id="content-container" style="display: none;">
+        <h2>Welcome, <span id="user-name"></span>!</h2>
+        <p>You are logged in. Start syncing your files now.</p>
+
+        <button id="sync-button">Sync Files</button>
+    </div>
+
     <script src="renderer.js"></script>
 </body>
+
 </html>
