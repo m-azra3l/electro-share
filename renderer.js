@@ -42,19 +42,19 @@ function encryptFile(filePath) {
     const algorithm = 'aes-256-cbc';
     const key = crypto.randomBytes(32); // 32 bytes key for AES-256
     const iv = crypto.randomBytes(16); // Initialization vector
-  
+
     const cipher = crypto.createCipheriv(algorithm, key, iv);
     const input = fs.createReadStream(filePath);
     const encryptedFilePath = `${filePath}.enc`;
     const output = fs.createWriteStream(encryptedFilePath);
-  
+
     input.pipe(cipher).pipe(output);
-  
+
     return new Promise((resolve, reject) => {
-      output.on('finish', () => resolve({ encryptedFilePath, key, iv }));
-      output.on('error', reject);
+        output.on('finish', () => resolve({ encryptedFilePath, key, iv }));
+        output.on('error', reject);
     });
-  }
+}
 
 // Function to decrypt file data
 function decryptFile(encryptedFilePath, key, iv, destinationPath) {
@@ -62,14 +62,14 @@ function decryptFile(encryptedFilePath, key, iv, destinationPath) {
     const decipher = crypto.createDecipheriv(algorithm, key, iv);
     const input = fs.createReadStream(encryptedFilePath);
     const output = fs.createWriteStream(destinationPath);
-  
+
     input.pipe(decipher).pipe(output);
-  
+
     return new Promise((resolve, reject) => {
-      output.on('finish', resolve);
-      output.on('error', reject);
+        output.on('finish', resolve);
+        output.on('error', reject);
     });
-  }
+}
 
 // Define the folder to monitor
 const syncFolder = path.join(__dirname, 'sync-folder');
@@ -99,82 +99,95 @@ function syncFile(filePath, event) {
 }
 
 // Upload file to File.io
-function uploadFile(filePath) {
-    const formData = new FormData();
-    formData.append('file', fs.createReadStream(filePath));
+// Modify uploadFile to encrypt the file first
+async function uploadFile(filePath) {
+    try {
+        const { encryptedFilePath, key, iv } = await encryptFile(filePath);
 
-    axios.post('https://file.io', formData, {
-        headers: {
-            'Content-Type': 'multipart/form-data'
-        }
-    })
-    .then(response => {
+        const formData = new FormData();
+        formData.append('file', fs.createReadStream(encryptedFilePath));
+
+        const response = await axios.post('https://file.io', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+
         if (response.data.success) {
             console.log(`File uploaded: ${response.data.name}, Key: ${response.data.key}`);
-            // You can store the key and file information locally for later use (e.g., in a local database)
+            // Store key and IV securely (e.g., in a database) to decrypt later
+            fs.unlinkSync(encryptedFilePath); // Remove the temporary encrypted file
         } else {
             console.error('File upload failed:', response.data);
         }
-    })
-    .catch(error => {
+    } catch (error) {
         console.error('Error uploading file:', error);
-    });
+    }
 }
 
 // Delete file on File.io using the key
 function deleteFile(fileKey) {
-    axios.delete(`https://file.io/${fileKey}`,{
+    axios.delete(`https://file.io/${fileKey}`, {
         headers: {
             'Content-Type': 'multipart/form-data'
         }
     })
-    .then(response => {
-        if (response.data.success) {
-            console.log(`File deleted: ${fileKey}`);
-        } else {
-            console.error('File deletion failed:', response.data);
-        }
-    })
-    .catch(error => {
-        console.error('Error deleting file:', error);
-    });
-}
-
-function listFiles() {
-    axios.get('https://www.file.io/',{
-        headers: {
-            'Content-Type': 'multipart/form-data'
-        }
-    })
-    .then(response => {
-        console.log('Files:', response.data.files);
-        // You can render these files in your UI or log them to the console
-    })
-    .catch(error => {
-        console.error('Error listing files:', error);
-    });
-}
-
-function downloadFile(fileKey, destinationPath) {
-    axios.get(`https://www.file.io/${fileKey}`,{
-        headers: {
-            'Content-Type': 'multipart/form-data'
-        }
-    }, 
-    { responseType: 'stream' })
-    .then(response => {
-        const writer = fs.createWriteStream(destinationPath);
-        response.data.pipe(writer);
-
-        writer.on('finish', () => {
-            console.log(`File downloaded: ${destinationPath}`);
+        .then(response => {
+            if (response.data.success) {
+                console.log(`File deleted: ${fileKey}`);
+            } else {
+                console.error('File deletion failed:', response.data);
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting file:', error);
         });
+}
 
-        writer.on('error', (error) => {
+// List files on File.io
+function listFiles() {
+    axios.get('https://www.file.io/', {
+        headers: {
+            'Content-Type': 'multipart/form-data'
+        }
+    })
+        .then(response => {
+            console.log('Files:', response.data.files);
+            // You can render these files in your UI or log them to the console
+        })
+        .catch(error => {
+            console.error('Error listing files:', error);
+        });
+}
+
+// Download file from File.io
+// Modify downloadFile to decrypt the file after downloading
+function downloadFile(fileKey, destinationPath, key, iv) {
+    const encryptedFilePath = `${destinationPath}.enc`;
+
+    axios.get(`https://www.file.io/${fileKey}`, 
+        {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        },
+        { responseType: 'stream' })
+        .then(response => {
+            const writer = fs.createWriteStream(encryptedFilePath);
+            response.data.pipe(writer);
+
+            writer.on('finish', async () => {
+                console.log(`File downloaded: ${encryptedFilePath}`);
+                await decryptFile(encryptedFilePath, key, iv, destinationPath);
+                fs.unlinkSync(encryptedFilePath); // Remove the temporary encrypted file
+                console.log(`File decrypted: ${destinationPath}`);
+            });
+
+            writer.on('error', (error) => {
+                console.error('Error downloading file:', error);
+            });
+        })
+        .catch(error => {
             console.error('Error downloading file:', error);
         });
-    })
-    .catch(error => {
-        console.error('Error downloading file:', error);
-    });
 }
