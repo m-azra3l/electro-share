@@ -1,35 +1,44 @@
 const os = require('os');
 const path = require('path');
-const { execSync } = require('child_process');
-const WinReg = require('winreg');
+const { exec } = require('child_process');
 const fs = require('fs');
 
 // Function to add virtual folder on Windows
 function addWindowsVirtualFolder(folderName, executablePath) {
     const clsid = `{${require('uuid').v4()}}`;
-    const regKey = new WinReg({
-        hive: WinReg.HKLM,
-        key: `\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MyComputer\\NameSpace\\${clsid}`
-    });
+    const keyPath = `HKCU\\Software\\Classes\\CLSID\\${clsid}`;
+    const command = `reg add "${keyPath}" /ve /t REG_SZ /d "${folderName}" /f`;
 
-    regKey.set('', WinReg.REG_SZ, folderName, (err) => {
-        if (err) {
-            console.error('Error setting registry value:', err);
+    exec(command, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error setting registry value: ${error.message}`);
+            if (error.message.includes('Access is denied')) {
+                console.error('Please run the application as an administrator to modify the registry.');
+            }
             return;
         }
+        console.log('Registry key added successfully:', stdout);
 
-        console.log(`Virtual folder '${folderName}' added to This PC.`);
+        const commandKeyPath = `HKCU\\Software\\Classes\\CLSID\\${clsid}\\DefaultIcon`;
+        const commandIcon = `reg add "${commandKeyPath}" /ve /t REG_SZ /d "${executablePath}" /f`;
 
-        const commandKey = new WinReg({
-            hive: WinReg.HKLM,
-            key: `\\SOFTWARE\\Classes\\CLSID\\${clsid}\\DefaultIcon`
-        });
-
-        commandKey.set('', WinReg.REG_SZ, executablePath, (err) => {
-            if (err) {
-                console.error('Error setting executable path:', err);
+        exec(commandIcon, (iconError, iconStdout, iconStderr) => {
+            if (iconError) {
+                console.error('Error setting executable path:', iconError);
             } else {
                 console.log(`Executable path set to '${executablePath}'.`);
+            }
+        });
+
+        // Add to 'This PC'
+        const thisPcKeyPath = `HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MyComputer\\NameSpace\\${clsid}`;
+        const thisPcCommand = `reg add "${thisPcKeyPath}" /f`;
+
+        exec(thisPcCommand, (thisPcError, thisPcStdout, thisPcStderr) => {
+            if (thisPcError) {
+                console.error('Error adding virtual folder to This PC:', thisPcError);
+            } else {
+                console.log(`Virtual folder '${folderName}' added to This PC.`);
             }
         });
     });
@@ -55,8 +64,8 @@ function addMacOSSymlink(folderName, targetPath) {
 // Function to handle OS-specific folder integration
 function integrateVirtualFolder() {
     const platform = os.platform();
-    
     const folderName = 'ElectroShare';
+
     if (platform === 'win32') {
         const executablePath = path.join(__dirname, 'C:\\ElectroShare\\ElectroShare.exe');
         addWindowsVirtualFolder(folderName, executablePath);
