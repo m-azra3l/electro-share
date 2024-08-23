@@ -1,5 +1,4 @@
 const os = require('os');
-const path = require('path');
 const { exec } = require('child_process');
 const fs = require('fs');
 
@@ -48,7 +47,7 @@ function addWindowsVirtualFolder(folderName, executablePath) {
 // Function to add symlink on macOS
 function addMacOSSymlink(folderName, targetPath) {
     const homeDir = os.homedir();
-    const symlinkPath = path.join(homeDir, folderName);
+    const symlinkPath = `${homeDir}/${folderName}`;
 
     if (fs.existsSync(symlinkPath)) {
         console.log(`Symlink '${folderName}' already exists.`);
@@ -68,10 +67,11 @@ function integrateVirtualFolder() {
     const folderName = 'ElectroShare';
 
     if (platform === 'win32') {
-        const executablePath = path.join(__dirname, 'C:\\ElectroShare\\ElectroShare.exe');
+        // Specify the executable path directly
+        const executablePath = 'C:\\ElectroShare\\ElectroShare.exe';
         addWindowsVirtualFolder(folderName, executablePath);
     } else if (platform === 'darwin') {
-        const targetPath = path.join(__dirname, 'ElectroShare.app/Contents/MacOS/ElectroShare');
+        const targetPath = '/Applications/ElectroShare.app/Contents/MacOS/ElectroShare';
         addMacOSSymlink(folderName, targetPath);
     } else {
         console.log('Unsupported OS for virtual folder integration.');
