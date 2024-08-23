@@ -23,9 +23,9 @@
 <body>
     <h1>Electro Share</h1>
     <p>This is a Proof of Concept for a desktop synchronization application.</p>
-    
+
     <div id="notification"></div>
-    
+
     <div id="login-container">
         <h2>Login</h2>
         <form id="login-form">
@@ -42,6 +42,23 @@
         <h2>Welcome, <span id="user-name"></span>!</h2>
         <p>You are logged in. Start syncing your files now.</p>
         <button id="sync-button">Sync Files</button>
+        <button id="show-folder-button">Show Managed Folder</button>
+        <!-- Container for the file list -->
+        <h3>Your Files</h3>
+        <table id="file-list" border="1" style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Size</th>
+                    <th>Downloads</th>
+                    <th>Expires</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Files will be dynamically inserted here -->
+            </tbody>
+        </table>
     </div>
 
     <script src="renderer.js"></script>
