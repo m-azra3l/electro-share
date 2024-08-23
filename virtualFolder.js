@@ -5,8 +5,9 @@ const fs = require('fs');
 
 // Function to add virtual folder on Windows
 function addWindowsVirtualFolder(folderName, executablePath) {
-    const clsid = `{${require('uuid').v4()}}`;
+    const clsid = `{aa33752f-8df2-4eea-ac47-25ae57bd5637}`;
     const keyPath = `HKCU\\Software\\Classes\\CLSID\\${clsid}`;
+    
     const command = `reg add "${keyPath}" /ve /t REG_SZ /d "${folderName}" /f`;
 
     exec(command, (error, stdout, stderr) => {
