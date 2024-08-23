@@ -5,6 +5,18 @@ const fs = require('fs');
 const axios = require('axios');
 const crypto = require('crypto');
 
+// Function to show notifications
+function showNotification(message, type = 'success') {
+    const notification = document.getElementById('notification');
+    notification.innerText = message;
+    notification.style.backgroundColor = type === 'error' ? '#f44336' : '#4caf50';
+    notification.style.display = 'block';
+
+    setTimeout(() => {
+        notification.style.display = 'none';
+    }, 3000);
+}
+
 document.getElementById('sync-button').addEventListener('click', () => {
     ipcRenderer.send('sync-files');
 });
@@ -33,11 +45,13 @@ document.getElementById('login-form').addEventListener('submit', function (event
 
         // Send authentication status to the main process
         ipcRenderer.send('auth-status', true);
+        showNotification('Login successful!', 'success');
     } 
     else {
         // Invalid credentials
         document.getElementById('login-error').style.display = 'block';
         ipcRenderer.send('auth-status', false);
+        showNotification('Invalid credentials. Please try again.', 'error');
     }
 });
 
@@ -123,13 +137,16 @@ async function uploadFile(filePath) {
 
         if (response.data.success) {
             console.log(`File uploaded: ${response.data.name}, Key: ${response.data.key}`);
+            showNotification('File uploaded successfully!', 'success');
             // Store key and IV securely (e.g., in a database) to decrypt later
             fs.unlinkSync(encryptedFilePath); // Remove the temporary encrypted file
         } else {
             console.error('File upload failed:', response.data);
+            showNotification('File upload failed. Please try again.', 'error');
         }
     } catch (error) {
         console.error('Error uploading file:', error);
+        showNotification('Error uploading file. Please try again.', 'error');
     }
 }
 
@@ -143,12 +160,15 @@ function deleteFile(fileKey) {
         .then(response => {
             if (response.data.success) {
                 console.log(`File deleted: ${fileKey}`);
+                showNotification('File deleted successfully!', 'success');
             } else {
                 console.error('File deletion failed:', response.data);
+                showNotification('File deletion failed. Please try again.', 'error');
             }
         })
         .catch(error => {
             console.error('Error deleting file:', error);
+            showNotification('Error deleting file. Please try again.', 'error');
         });
 }
 
@@ -165,6 +185,7 @@ function listFiles() {
         })
         .catch(error => {
             console.error('Error listing files:', error);
+            showNotification('Error listing files. Please try again.', 'error');
         });
 }
 
@@ -193,9 +214,13 @@ function downloadFile(fileKey, destinationPath, key, iv) {
 
             writer.on('error', (error) => {
                 console.error('Error downloading file:', error);
+                showNotification('Error downloading file. Please try again.', 'error');
             });
         })
         .catch(error => {
             console.error('Error downloading file:', error);
+            showNotification('Error downloading file. Please try again.', 'error');
         });
 }
+
+module.exports = showNotification;
