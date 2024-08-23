@@ -3,10 +3,41 @@ const path = require('path');
 const { exec } = require('child_process');
 const fs = require('fs');
 
-function addWindowsVirtualFolder(folderName, managedDirPath) {
+function ensureDirectoryExists(directoryPath) {
+    if (!fs.existsSync(directoryPath)) {
+        fs.mkdirSync(directoryPath, { recursive: true });
+        console.log(`Directory created: ${directoryPath}`);
+    } else {
+        console.log(`Directory already exists: ${directoryPath}`);
+    }
+}
+
+function copyIcon(iconSrcPath, iconDestPath) {
+    // Ensure the destination directory exists
+    const destDir = path.dirname(iconDestPath);
+    ensureDirectoryExists(destDir);
+
+    // Copy the icon file
+    try {
+        fs.copyFileSync(iconSrcPath, iconDestPath);
+        console.log(`Icon copied to managed directory: ${iconDestPath}`);
+    } catch (copyError) {
+        console.error('Error copying icon:', copyError);
+    }
+}
+
+function addWindowsVirtualFolder(folderName, managedDirPath, iconPath) {
     const clsid = `{aa33752f-8df2-4eea-ac47-25ae57bd5637}`;
     const keyPath = `HKCU\\Software\\Classes\\CLSID\\${clsid}`;
-    
+
+    // Ensure the managed directory path exists
+    if (!fs.existsSync(managedDirPath)) {
+        fs.mkdirSync(managedDirPath, { recursive: true });
+        console.log(`Managed directory created at: ${managedDirPath}`);
+    } else {
+        console.log(`Managed directory already exists at: ${managedDirPath}`);
+    }
+
     // Add registry entry for the virtual folder name
     const command = `reg add "${keyPath}" /ve /t REG_SZ /d "${folderName}" /f`;
 
@@ -22,14 +53,9 @@ function addWindowsVirtualFolder(folderName, managedDirPath) {
 
         // Copy the icon to the managed folder
         const iconSrcPath = path.join(__dirname, 'app-icon.ico');
-        const iconDestPath = path.join(managedDirPath, 'app-icon.ico');
+        const iconDestPath = path.join(iconPath, 'app-icon.ico');
 
-        try {
-            fs.copyFileSync(iconSrcPath, iconDestPath);
-            console.log(`Icon copied to managed directory: ${iconDestPath}`);
-        } catch (copyError) {
-            console.error('Error copying icon:', copyError);
-        }
+        copyIcon(iconSrcPath, iconDestPath);
 
         // Set the default icon for the folder (Optional)
         const commandDefaultIcon = `reg add "${keyPath}\\DefaultIcon" /ve /t REG_SZ /d "${iconDestPath}" /f`;
@@ -41,23 +67,13 @@ function addWindowsVirtualFolder(folderName, managedDirPath) {
             }
         });
 
-        // Add the managed folder path to the virtual folder
-        const commandShellFolder = `reg add "${keyPath}\\ShellFolder" /v "FolderValueFlags" /t REG_DWORD /d 0x20 /f`;
-        exec(commandShellFolder, (shellFolderError, shellFolderStdout, shellFolderStderr) => {
-            if (shellFolderError) {
-                console.error('Error setting ShellFolder attributes:', shellFolderError);
+        // Set the folder's default path to the managedDirPath
+        const commandInstance = `reg add "${keyPath}\\Instance\\InitPropertyBag" /v "Target" /t REG_EXPAND_SZ /d "${managedDirPath}" /f`;
+        exec(commandInstance, (instanceError, instanceStdout, instanceStderr) => {
+            if (instanceError) {
+                console.error('Error setting managed directory path:', instanceError);
             } else {
-                console.log('ShellFolder attributes set successfully.');
-            }
-        });
-
-        // Link the virtual folder to the managed directory path
-        const commandFolderPath = `reg add "${keyPath}\\Instance" /v "CLSID" /t REG_SZ /d "{0AFACED1-E828-11D1-9187-B532F1E9575D}" /f`;
-        exec(commandFolderPath, (folderPathError, folderPathStdout, folderPathStderr) => {
-            if (folderPathError) {
-                console.error('Error setting folder path:', folderPathError);
-            } else {
-                console.log('Managed directory linked to virtual folder successfully.');
+                console.log('Managed directory path set successfully:', managedDirPath);
             }
         });
 
@@ -68,7 +84,8 @@ function addWindowsVirtualFolder(folderName, managedDirPath) {
         exec(thisPcCommand, (thisPcError, thisPcStdout, thisPcStderr) => {
             if (thisPcError) {
                 console.error('Error adding virtual folder to This PC:', thisPcError);
-            } else {
+            } 
+            else {
                 console.log(`Virtual folder '${folderName}' added to This PC.`);
             }
         });
@@ -104,6 +121,7 @@ function integrateVirtualFolder(isAuthenticated) {
     // Create the managed directory
     const userHomeDir = os.homedir();
     const managedDirPath = path.join(userHomeDir, folderName);
+    const iconPath = path.join(userHomeDir, 'ElectroShareIcon');
 
     if (!fs.existsSync(managedDirPath)) {
         fs.mkdirSync(managedDirPath);
@@ -113,7 +131,7 @@ function integrateVirtualFolder(isAuthenticated) {
     }
 
     if (platform === 'win32') {
-        addWindowsVirtualFolder(folderName, managedDirPath);
+        addWindowsVirtualFolder(folderName, managedDirPath, iconPath);
     } else if (platform === 'darwin') {
         addMacOSSymlink(folderName, managedDirPath);
     } else {
