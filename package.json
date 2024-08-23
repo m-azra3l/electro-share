@@ -18,7 +18,8 @@
       "index.html",
       "renderer.js",
       "virtualFolder.js",
-      "app-icon.ico"
+      "app-icon.ico",
+      "app.db"
     ],
     "win": {
       "target": "nsis",
@@ -45,7 +46,9 @@
     "axios": "^1.7.4",
     "chokidar": "^3.6.0",
     "crypto-js": "^4.2.0",
+    "dotenv": "^16.4.5",
     "electron-store": "^10.0.0",
+    "sqlite3": "^5.1.7",
     "uuidv4": "^6.2.13",
     "winreg": "^1.2.5"
   },
