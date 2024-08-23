@@ -1,12 +1,13 @@
 const os = require('os');
+const path = require('path');
 const { exec } = require('child_process');
 const fs = require('fs');
 
-// Function to add virtual folder on Windows
-function addWindowsVirtualFolder(folderName, executablePath) {
+function addWindowsVirtualFolder(folderName, managedDirPath) {
     const clsid = `{aa33752f-8df2-4eea-ac47-25ae57bd5637}`;
     const keyPath = `HKCU\\Software\\Classes\\CLSID\\${clsid}`;
     
+    // Add registry entry for the virtual folder name
     const command = `reg add "${keyPath}" /ve /t REG_SZ /d "${folderName}" /f`;
 
     exec(command, (error, stdout, stderr) => {
@@ -19,18 +20,17 @@ function addWindowsVirtualFolder(folderName, executablePath) {
         }
         console.log('Registry key added successfully:', stdout);
 
-        const commandKeyPath = `HKCU\\Software\\Classes\\CLSID\\${clsid}\\DefaultIcon`;
-        const commandIcon = `reg add "${commandKeyPath}" /ve /t REG_SZ /d "${executablePath}" /f`;
-
-        exec(commandIcon, (iconError, iconStdout, iconStderr) => {
-            if (iconError) {
-                console.error('Error setting executable path:', iconError);
+        // Set the path to the managed directory
+        const commandShellFolder = `reg add "${keyPath}\\ShellFolder" /v "Attributes" /t REG_DWORD /d 0x20 /f`;
+        exec(commandShellFolder, (shellFolderError, shellFolderStdout, shellFolderStderr) => {
+            if (shellFolderError) {
+                console.error('Error setting ShellFolder attributes:', shellFolderError);
             } else {
-                console.log(`Executable path set to '${executablePath}'.`);
+                console.log('ShellFolder attributes set successfully.');
             }
         });
 
-        // Add to 'This PC'
+        // Add the folder to "This PC"
         const thisPcKeyPath = `HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MyComputer\\NameSpace\\${clsid}`;
         const thisPcCommand = `reg add "${thisPcKeyPath}" /f`;
 
@@ -41,13 +41,23 @@ function addWindowsVirtualFolder(folderName, executablePath) {
                 console.log(`Virtual folder '${folderName}' added to This PC.`);
             }
         });
+
+        // Set the default icon for the folder (Optional)
+        const commandDefaultIcon = `reg add "${keyPath}\\DefaultIcon" /ve /t REG_SZ /d "${path.join(managedDirPath, 'icon.ico')}" /f`;
+        exec(commandDefaultIcon, (iconError, iconStdout, iconStderr) => {
+            if (iconError) {
+                console.error('Error setting folder icon:', iconError);
+            } else {
+                console.log('Folder icon set successfully.');
+            }
+        });
     });
 }
 
 // Function to add symlink on macOS
 function addMacOSSymlink(folderName, targetPath) {
     const homeDir = os.homedir();
-    const symlinkPath = `${homeDir}/${folderName}`;
+    const symlinkPath = path.join(homeDir, folderName);
 
     if (fs.existsSync(symlinkPath)) {
         console.log(`Symlink '${folderName}' already exists.`);
@@ -61,21 +71,31 @@ function addMacOSSymlink(folderName, targetPath) {
     }
 }
 
-// Function to handle OS-specific folder integration
+// Create and manage the directory, and integrate it as a virtual folder
 function integrateVirtualFolder() {
     const platform = os.platform();
     const folderName = 'ElectroShare';
 
+    // Create the managed directory
+    const userHomeDir = os.homedir();
+    const managedDirPath = path.join(userHomeDir, folderName);
+
+    if (!fs.existsSync(managedDirPath)) {
+        fs.mkdirSync(managedDirPath);
+        console.log(`Managed directory created at: ${managedDirPath}`);
+    } else {
+        console.log('Managed directory already exists.');
+    }
+
     if (platform === 'win32') {
-        // Specify the executable path directly
-        const executablePath = 'C:\\ElectroShare\\ElectroShare.exe';
-        addWindowsVirtualFolder(folderName, executablePath);
+        addWindowsVirtualFolder(folderName, managedDirPath);
     } else if (platform === 'darwin') {
-        const targetPath = '/Applications/ElectroShare.app/Contents/MacOS/ElectroShare';
-        addMacOSSymlink(folderName, targetPath);
+        addMacOSSymlink(folderName, managedDirPath);
     } else {
         console.log('Unsupported OS for virtual folder integration.');
     }
+
+    return managedDirPath;
 }
 
 module.exports = integrateVirtualFolder;
