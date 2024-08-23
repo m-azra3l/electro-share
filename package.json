@@ -11,7 +11,6 @@
     "build": "electron-builder"
   },
   "build": {
-    "asar": false,
     "appId": "TestId",
     "productName": "ElectroShare",
     "files": [
@@ -29,9 +28,6 @@
       "perMachine": true,
       "allowElevation": true,
       "allowToChangeInstallationDirectory": true,
-      "installerIcon": "build/installerIcon.ico",
-      "uninstallerIcon": "build/uninstallerIcon.ico",
-      "installerHeaderIcon": "build/installerHeaderIcon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "ElectroShare"
