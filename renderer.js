@@ -15,7 +15,6 @@ ipcRenderer.on('sync-complete', (event, message) => {
 
 const mockUsers = [
     { username: 'user1', password: 'password123' },
-    { username: 'user2', password: 'password456' }
 ];
 
 document.getElementById('login-form').addEventListener('submit', function (event) {
@@ -74,6 +73,9 @@ function decryptFile(encryptedFilePath, key, iv, destinationPath) {
 // Define the folder to monitor
 const syncFolder = path.join(__dirname, 'sync-folder');
 
+const token = process.env.FILEIO_KEY;
+const baseUrl = 'https://www.file.io/';
+
 // Initialize chokidar watcher
 const watcher = chokidar.watch(syncFolder, {
     ignored: /(^|[\/\\])\../, // ignore dotfiles
@@ -107,9 +109,10 @@ async function uploadFile(filePath) {
         const formData = new FormData();
         formData.append('file', fs.createReadStream(encryptedFilePath));
 
-        const response = await axios.post('https://file.io', formData, {
+        const response = await axios.post(baseUrl, formData, {
             headers: {
-                'Content-Type': 'multipart/form-data'
+                'Content-Type': 'multipart/form-data',
+                Authorization: `Bearer ${token}`
             }
         });
 
@@ -127,9 +130,9 @@ async function uploadFile(filePath) {
 
 // Delete file on File.io using the key
 function deleteFile(fileKey) {
-    axios.delete(`https://file.io/${fileKey}`, {
+    axios.delete(`${baseUrl}${fileKey}`, {
         headers: {
-            'Content-Type': 'multipart/form-data'
+            Authorization: `Bearer ${token}`
         }
     })
         .then(response => {
@@ -146,9 +149,9 @@ function deleteFile(fileKey) {
 
 // List files on File.io
 function listFiles() {
-    axios.get('https://www.file.io/', {
+    axios.get(baseUrl, {
         headers: {
-            'Content-Type': 'multipart/form-data'
+            Authorization: `Bearer ${token}`
         }
     })
         .then(response => {
@@ -165,10 +168,10 @@ function listFiles() {
 function downloadFile(fileKey, destinationPath, key, iv) {
     const encryptedFilePath = `${destinationPath}.enc`;
 
-    axios.get(`https://www.file.io/${fileKey}`, 
+    axios.get(`${baseUrl}${fileKey}`,
         {
             headers: {
-                'Content-Type': 'multipart/form-data'
+                Authorization: `Bearer ${token}`
             }
         },
         { responseType: 'stream' })
