@@ -2,6 +2,7 @@ const os = require('os');
 const path = require('path');
 const { exec } = require('child_process');
 const fs = require('fs');
+const showNotification = require('./renderer').showNotification;
 
 function addWindowsVirtualFolder(folderName, managedDirPath) {
     const clsid = `{aa33752f-8df2-4eea-ac47-25ae57bd5637}`;
@@ -15,6 +16,7 @@ function addWindowsVirtualFolder(folderName, managedDirPath) {
             console.error(`Error setting registry value: ${error.message}`);
             if (error.message.includes('Access is denied')) {
                 console.error('Please run the application as an administrator to modify the registry.');
+                showNotification('Please run the application as an administrator to modify the registry.', 'error');
             }
             return;
         }
@@ -25,8 +27,10 @@ function addWindowsVirtualFolder(folderName, managedDirPath) {
         exec(commandShellFolder, (shellFolderError, shellFolderStdout, shellFolderStderr) => {
             if (shellFolderError) {
                 console.error('Error setting ShellFolder attributes:', shellFolderError);
+                showNotification('Error setting ShellFolder attributes. Please try again.', 'error');
             } else {
                 console.log('ShellFolder attributes set successfully.');
+                showNotification('Virtual folder attributes set successfully!', 'success');
             }
         });
 
@@ -37,8 +41,10 @@ function addWindowsVirtualFolder(folderName, managedDirPath) {
         exec(thisPcCommand, (thisPcError, thisPcStdout, thisPcStderr) => {
             if (thisPcError) {
                 console.error('Error adding virtual folder to This PC:', thisPcError);
+                showNotification('Error adding virtual folder to This PC. Please try again.', 'error');
             } else {
                 console.log(`Virtual folder '${folderName}' added to This PC.`);
+                showNotification(`Virtual folder '${folderName}' added successfully!`, 'success');
             }
         });
 
@@ -47,8 +53,10 @@ function addWindowsVirtualFolder(folderName, managedDirPath) {
         exec(commandDefaultIcon, (iconError, iconStdout, iconStderr) => {
             if (iconError) {
                 console.error('Error setting folder icon:', iconError);
+                showNotification('Error setting folder icon. Please try again.', 'error');
             } else {
                 console.log('Folder icon set successfully.');
+                showNotification('Folder icon set successfully!', 'success');
             }
         });
     });
@@ -61,12 +69,15 @@ function addMacOSSymlink(folderName, targetPath) {
 
     if (fs.existsSync(symlinkPath)) {
         console.log(`Symlink '${folderName}' already exists.`);
+        showNotification(`Symlink '${folderName}' already exists.`, 'error');
     } else {
         try {
             fs.symlinkSync(targetPath, symlinkPath);
             console.log(`Symlink '${folderName}' created.`);
+            showNotification(`Symlink '${folderName}' created successfully!`, 'success');
         } catch (error) {
             console.error('Error creating symlink:', error);
+            showNotification('Error creating symlink. Please try again.', 'error');
         }
     }
 }
@@ -75,6 +86,7 @@ function addMacOSSymlink(folderName, targetPath) {
 function integrateVirtualFolder(isAuthenticated) {
     if (!isAuthenticated) {
         console.log('User is not authenticated. Virtual folder access denied.');
+        showNotification('User is not authenticated. Virtual folder access denied.', 'error');
         return;
     }
     const platform = os.platform();
@@ -87,8 +99,10 @@ function integrateVirtualFolder(isAuthenticated) {
     if (!fs.existsSync(managedDirPath)) {
         fs.mkdirSync(managedDirPath);
         console.log(`Managed directory created at: ${managedDirPath}`);
+        showNotification(`Managed directory created at: ${managedDirPath}`, 'success');
     } else {
         console.log('Managed directory already exists.');
+        showNotification('Managed directory already exists.', 'error');
     }
 
     if (platform === 'win32') {
@@ -97,6 +111,7 @@ function integrateVirtualFolder(isAuthenticated) {
         addMacOSSymlink(folderName, managedDirPath);
     } else {
         console.log('Unsupported OS for virtual folder integration.');
+        showNotification('Unsupported OS for virtual folder integration.', 'error');
     }
 
     return managedDirPath;
