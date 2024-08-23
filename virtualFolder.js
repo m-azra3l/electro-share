@@ -72,7 +72,11 @@ function addMacOSSymlink(folderName, targetPath) {
 }
 
 // Create and manage the directory, and integrate it as a virtual folder
-function integrateVirtualFolder() {
+function integrateVirtualFolder(isAuthenticated) {
+    if (!isAuthenticated) {
+        console.log('User is not authenticated. Virtual folder access denied.');
+        return;
+    }
     const platform = os.platform();
     const folderName = 'ElectroShare';
 
