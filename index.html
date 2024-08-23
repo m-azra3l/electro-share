@@ -5,11 +5,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Electro Share</title>
+    <style>
+        #notification {
+            display: none;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #4caf50;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+    </style>
 </head>
 
 <body>
     <h1>Electro Share</h1>
     <p>This is a Proof of Concept for a desktop synchronization application.</p>
+    
     <div id="login-container">
         <h2>Login</h2>
         <form id="login-form">
@@ -25,9 +39,10 @@
     <div id="content-container" style="display: none;">
         <h2>Welcome, <span id="user-name"></span>!</h2>
         <p>You are logged in. Start syncing your files now.</p>
-
         <button id="sync-button">Sync Files</button>
     </div>
+
+    <div id="notification"></div>
 
     <script src="renderer.js"></script>
 </body>
