@@ -17,7 +17,8 @@
       "main.js",
       "index.html",
       "renderer.js",
-      "virtualFolder.js"
+      "virtualFolder.js",
+      "app-icon.ico"
     ],
     "win": {
       "target": "nsis",
@@ -50,6 +51,6 @@
   },
   "devDependencies": {
     "electron": "^32.0.1",
-    "electron-builder": "^24.13.3"
+    "electron-builder": "25.0.5"
   }
 }
