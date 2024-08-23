@@ -30,9 +30,14 @@ document.getElementById('login-form').addEventListener('submit', function (event
         document.getElementById('login-container').style.display = 'none';
         document.getElementById('content-container').style.display = 'block';
         document.getElementById('user-name').innerText = username;
-    } else {
+
+        // Send authentication status to the main process
+        ipcRenderer.send('auth-status', true);
+    } 
+    else {
         // Invalid credentials
         document.getElementById('login-error').style.display = 'block';
+        ipcRenderer.send('auth-status', false);
     }
 });
 
