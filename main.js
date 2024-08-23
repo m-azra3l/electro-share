@@ -7,6 +7,9 @@ let isAuthenticated = false; // Initial authentication state
 
 let mainWindow;
 
+// Integrate the virtual folder when the app is ready
+const managedDirPath = integrateVirtualFolder(isAuthenticated);
+
 function createWindow(openPath) {
   const win = new BrowserWindow({
     width: 800,
@@ -26,9 +29,16 @@ function createWindow(openPath) {
   }
 }
 
+// Listen for authentication status from the renderer process
+ipcMain.on('auth-status', (event, status) => {
+  isAuthenticated = status;
+  console.log(`Authentication status: ${isAuthenticated}`);
+
+  // Integrate the virtual folder based on authentication status
+  integrateVirtualFolder(isAuthenticated);
+});
+
 app.whenReady().then(() => {
-  // Integrate the virtual folder when the app is ready
-  const managedDirPath = integrateVirtualFolder();
 
   // Monitor and open the folder on click
   app.on('activate', () => {
