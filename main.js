@@ -2,11 +2,17 @@ const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const integrateVirtualFolder = require('./virtualFolder');
+const os = require('os');
 
 let isAuthenticated = false; // Initial authentication state
 
 // Integrate the virtual folder when the app is ready
 let managedDirPath;
+
+const folderName = 'ElectroShare';
+// Create the managed directory
+const userHomeDir = os.homedir();
+const managedFolderPath = path.join(userHomeDir, folderName);
 
 function createWindow(openPath) {
   const win = new BrowserWindow({
@@ -38,6 +44,10 @@ ipcMain.on('auth-status', (event, status) => {
 
   // Re-integrate the virtual folder based on authentication status
   managedDirPath = integrateVirtualFolder(isAuthenticated);
+});
+
+ipcMain.on('show-managed-folder', (event) => {
+  shell.openPath(managedFolderPath);
 });
 
 app.whenReady().then(() => {
