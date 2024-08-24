@@ -1,2 +1,2 @@
 # electro-share
- Desktop application for cloud storage and file sharing
+ This is a Proof of Concept for a desktop synchronization application.
