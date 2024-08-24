@@ -137,3 +137,5 @@ pnpm-lock.yaml
 # Files
 .env
 testUpload.js
+
+/user-specific-folder
