@@ -26,6 +26,7 @@ function createWindow(openPath) {
   });
 
   win.loadFile('index.html');
+  win.webContents.openDevTools();
 
   // Handle the openPath if provided
   if (openPath) {
