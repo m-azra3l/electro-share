@@ -3,7 +3,8 @@ const chokidar = require('chokidar');
 const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
-const crypto = require('crypto');
+// const crypto = require('crypto');
+const crypto = require('crypto-js');
 const os = require('os');
 const sqlite3 = require('sqlite3').verbose();
 const db = new sqlite3.Database('app.db');
@@ -86,38 +87,54 @@ function recordFileInfo(fileInfo) {
 }
 
 // Function to encrypt file data
-function encryptFile(filePath) {
-    const algorithm = 'aes-256-cbc';
-    const key = crypto.randomBytes(32); // 32 bytes key for AES-256
-    const iv = crypto.randomBytes(16); // Initialization vector
-
-    const cipher = crypto.createCipheriv(algorithm, key, iv);
-    const input = fs.createReadStream(filePath);
-    const encryptedFilePath = `${filePath}.enc`;
-    const output = fs.createWriteStream(encryptedFilePath);
-
-    input.pipe(cipher).pipe(output);
-
-    return new Promise((resolve, reject) => {
-        output.on('finish', () => resolve({ encryptedFilePath, key, iv }));
-        output.on('error', reject);
-    });
+function encryptFile(buffer, key) {
+    // Convert the buffer to a WordArray
+    const wordArray = crypto.lib.WordArray.create(buffer);
+    // Encrypt the WordArray using AES
+    const encrypted = crypto.AES.encrypt(wordArray, key);
+    // Convert encrypted WordArray back to buffer
+    const encryptedBuffer = Buffer.from(encrypted.ciphertext.toString(crypto.enc.Hex), 'hex');
+    return encryptedBuffer;
 }
+// function encryptFile(filePath) {
+//     const algorithm = 'aes-256-cbc';
+//     const key = crypto.randomBytes(32); // 32 bytes key for AES-256
+//     const iv = crypto.randomBytes(16); // Initialization vector
+
+//     const cipher = crypto.createCipheriv(algorithm, key, iv);
+//     const input = fs.createReadStream(filePath);
+//     const encryptedFilePath = `${filePath}.enc`;
+//     const output = fs.createWriteStream(encryptedFilePath);
+
+//     input.pipe(cipher).pipe(output);
+
+//     return new Promise((resolve, reject) => {
+//         output.on('finish', () => resolve({ encryptedFilePath, key, iv }));
+//         output.on('error', reject);
+//     });
+// }
 
 // Function to decrypt file data
-function decryptFile(encryptedFilePath, key, iv, destinationPath) {
-    const algorithm = 'aes-256-cbc';
-    const decipher = crypto.createDecipheriv(algorithm, key, iv);
-    const input = fs.createReadStream(encryptedFilePath);
-    const output = fs.createWriteStream(destinationPath);
-
-    input.pipe(decipher).pipe(output);
-
-    return new Promise((resolve, reject) => {
-        output.on('finish', resolve);
-        output.on('error', reject);
-    });
+function decryptFile(encryptedBuffer, key) {
+    const encryptedHex = encryptedBuffer.toString('hex');
+    const wordArray = crypto.enc.Hex.parse(encryptedHex);
+    const decrypted = crypto.AES.decrypt({ ciphertext: wordArray }, key);
+    const decryptedBuffer = Buffer.from(decrypted.toString(crypto.enc.Utf8), 'utf-8');
+    return decryptedBuffer;
 }
+// function decryptFile(encryptedFilePath, key, iv, destinationPath) {
+//     const algorithm = 'aes-256-cbc';
+//     const decipher = crypto.createDecipheriv(algorithm, key, iv);
+//     const input = fs.createReadStream(encryptedFilePath);
+//     const output = fs.createWriteStream(destinationPath);
+
+//     input.pipe(decipher).pipe(output);
+
+//     return new Promise((resolve, reject) => {
+//         output.on('finish', resolve);
+//         output.on('error', reject);
+//     });
+// }
 
 // Define the folder to monitor
 const folderName = 'ElectroShare';
@@ -125,12 +142,15 @@ const folderName = 'ElectroShare';
 const userHomeDir = os.homedir();
 const syncFolder = path.join(userHomeDir, folderName);
 
-const token = process.env.FILEIO_KEY;
-const baseUrl = 'https://www.file.io/';
+// const token = process.env.FILEIO_KEY;
+const token = "MFOXED2.TTZTWMD-R9T4N0P-MX767JY-N433D6B";
+const baseUrl = 'https://file.io/';
+// const encryptKey = process.env.ENCRYPTION_KEY;
+const encryptKey = "1234567";
 
 // Initialize chokidar watcher
 const watcher = chokidar.watch(syncFolder, {
-    ignored: /(^|[\/\\])\../, // ignore dotfiles
+    ignored: /(^|[\/\\])\..|(\.enc$)/, // ignore dotfiles and .enc files
     persistent: true
 });
 
@@ -152,6 +172,20 @@ function syncFile(filePath, event) {
     }
 }
 
+// Check if file exists in the database before upload
+function checkFileExistsInDB(fileName, callback) {
+    const query = 'SELECT * FROM FileInfos WHERE Name = ?';
+    db.get(query, [fileName], (err, row) => {
+        if (err) {
+            console.error('Error checking file in database:', err.message);
+            showNotification('Error checking file in database. Please try again.', 'error');
+            callback(err, false);
+        } else {
+            callback(null, !!row); // returns true if row exists, false otherwise
+        }
+    });
+}
+
 function addDaysToDate(days) {
     const date = new Date();
     date.setDate(date.getDate() + days);
@@ -161,54 +195,90 @@ function addDaysToDate(days) {
 // Upload file to File.io
 // Modify uploadFile to encrypt the file first
 async function uploadFile(filePath) {
-    try {
-        const { encryptedFilePath, key, iv } = await encryptFile(filePath);
+    const fileName = path.basename(filePath);
 
-        const formData = new FormData();
-        formData.append('file', fs.createReadStream(encryptedFilePath));
+    checkFileExistsInDB(fileName, async (err, exists) => {
+        if (err) return; // Error already logged in checkFileExistsInDB
 
-        // Add additional parameters
-        const maxDownloads = 1;
-        const expires = addDaysToDate(13);
-        const autoDelete = true;
-
-        formData.append('maxDownloads', maxDownloads);
-        formData.append('expires', expires);
-        formData.append('autoDelete', autoDelete);
-
-        const response = await axios.post(baseUrl, formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-                Authorization: `Bearer ${token}`
-            }
-        });
-
-        if (response.data.success) {
-            console.log(`File uploaded: ${response.data.name}, Key: ${response.data.key}`);
-            showNotification('File uploaded successfully!', 'success');
-
-            // Record the file info in the database
-            const fileInfo = {
-                name: path.basename(filePath), // Original file name
-                created: response.data.created, // Use the 'created' value from the response
-                key: response.data.key,
-                maxDownloads: response.data.maxDownloads || maxDownloads, // Use the response or default value
-                autoDelete: response.data.autoDelete,
-                expires: response.data.expires
-            };
-            recordFileInfo(fileInfo);
-
-            // Clean up the temporary encrypted file
-            fs.unlinkSync(encryptedFilePath);
-        } else {
-            console.error('File upload failed:', response.data);
-            showNotification('File upload failed. Please try again.', 'error');
+        if (exists) {
+            console.log(`File ${fileName} already exists in the database. Skipping upload.`);
+            showNotification('File already exists in the database. Skipping upload.', 'error');
+            return;
         }
-    } catch (error) {
-        console.error('Error uploading file:', error);
-        showNotification('Error uploading file. Please try again.', 'error');
-    }
+
+        try {
+            // Read the binary data of the file
+            const fileData = fs.readFileSync(filePath);
+            console.log('File Data Length:', fileData.length);  // Debugging output
+
+            // Encrypt the binary data
+            const encryptedBuffer = encryptFile(fileData, encryptKey);
+            console.log('Encrypted Buffer Length:', encryptedBuffer.length);  // Debugging output
+
+            // Write the encrypted data to a temporary file
+            const tempEncryptedFilePath = `${filePath}.enc`;
+            fs.writeFileSync(tempEncryptedFilePath, encryptedBuffer);
+
+            // Check if the encrypted file exists before proceeding
+            if (!fs.existsSync(tempEncryptedFilePath)) {
+                console.error('Encrypted file does not exist.');
+                showNotification('Encrypted file does not exist. Please try again.', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fs.createReadStream(tempEncryptedFilePath));
+
+            // Ensure the file is attached
+            console.log('FormData:', formData.getHeaders());
+
+            // Add additional parameters
+            const maxDownloads = 1;
+            const expires = addDaysToDate(13);
+            const autoDelete = true;
+
+            formData.append('maxDownloads', maxDownloads);
+            formData.append('expires', expires);
+            formData.append('autoDelete', autoDelete);
+
+            const response = await axios.post(baseUrl, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                    Authorization: `Bearer ${token}`
+                }
+            });
+
+            if (response.data.success) {
+                console.log(`File uploaded: ${response.data.name}, Key: ${response.data.key}`);
+                showNotification('File uploaded successfully!', 'success');
+
+                // Record the file info in the database
+                const fileInfo = {
+                    name: fileName,
+                    created: response.data.created,
+                    key: response.data.key,
+                    maxDownloads: response.data.maxDownloads || maxDownloads,
+                    autoDelete: response.data.autoDelete,
+                    expires: response.data.expires
+                };
+                recordFileInfo(fileInfo);
+
+                // Clean up the temporary encrypted file
+                fs.unlinkSync(tempEncryptedFilePath);  // Remove the temporary encrypted file
+
+                // Remove the original unencrypted file
+                fs.unlinkSync(filePath);  // Delete the original file
+            } else {
+                console.error('File upload failed:', response.data);
+                showNotification('File upload failed. Please try again.', 'error');
+            }
+        } catch (error) {
+            console.error('Error uploading file:', error);
+            showNotification('Error uploading file. Please try again.', 'error');
+        }
+    });
 }
+
 
 // Delete file on File.io using the key
 function deleteFile(fileKey) {
@@ -253,7 +323,8 @@ function listFiles() {
         }
     })
     .then(response => {
-        const files = response.data.files;
+        console.log('Response:', response.data);
+        const files = response.data.nodes;
         console.log('Files:', files);
         renderFileList(files);
     })
@@ -266,6 +337,18 @@ function listFiles() {
 function renderFileList(files) {
     const fileListContainer = document.querySelector('#file-list tbody');
     fileListContainer.innerHTML = ''; // Clear any existing rows
+
+    if (files.length === 0) {
+        // If the array is empty, display a message
+        const emptyMessageRow = document.createElement('tr');
+        const emptyMessageCell = document.createElement('td');
+        emptyMessageCell.colSpan = 5; // Span across all columns
+        emptyMessageCell.textContent = 'No files available.';
+        emptyMessageCell.style.textAlign = 'center';
+        emptyMessageRow.appendChild(emptyMessageCell);
+        fileListContainer.appendChild(emptyMessageRow);
+        return;
+    }
 
     files.forEach(file => {
         const row = document.createElement('tr');
@@ -298,7 +381,7 @@ function renderFileList(files) {
         downloadButton.textContent = 'Download';
         downloadButton.onclick = () => {
             const destinationPath = getDestinationPathForUser(file.name);
-            downloadFile(file.key, destinationPath, file.key, iv); // Assuming key and iv are available
+            downloadFile(file.key, destinationPath);
         };
         actionsCell.appendChild(downloadButton);
 
@@ -314,7 +397,7 @@ function renderFileList(files) {
 }
 
 // Function to handle the download process
-function downloadFile(fileKey, destinationPath, key, iv) {
+function downloadFile(fileKey, destinationPath) {
     const encryptedFilePath = `${destinationPath}.enc`;
 
     axios.get(`${baseUrl}${fileKey}`, {
@@ -329,7 +412,8 @@ function downloadFile(fileKey, destinationPath, key, iv) {
 
         writer.on('finish', async () => {
             console.log(`File downloaded: ${encryptedFilePath}`);
-            await decryptFile(encryptedFilePath, key, iv, destinationPath);
+            decryptFile(encryptedFilePath, encryptKey);
+            //await decryptFile(encryptedFilePath, key, iv, destinationPath);
             fs.unlinkSync(encryptedFilePath); // Remove the temporary encrypted file
             console.log(`File decrypted: ${destinationPath}`);
             showNotification('File downloaded and decrypted successfully!', 'success');
