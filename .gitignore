@@ -133,4 +133,7 @@ dist
 yarn.lock
 package-lock.json
 pnpm-lock.yaml
+
+# Files
 .env
+testUpload.js
