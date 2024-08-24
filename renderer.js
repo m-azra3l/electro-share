@@ -142,11 +142,9 @@ const folderName = 'ElectroShare';
 const userHomeDir = os.homedir();
 const syncFolder = path.join(userHomeDir, folderName);
 
-// const token = process.env.FILEIO_KEY;
-const token = "MFOXED2.TTZTWMD-R9T4N0P-MX767JY-N433D6B";
+const token = process.env.FILEIO_KEY;
 const baseUrl = 'https://file.io/';
-// const encryptKey = process.env.ENCRYPTION_KEY;
-const encryptKey = "1234567";
+const encryptKey = process.env.ENCRYPTION_KEY;
 
 // Initialize chokidar watcher
 const watcher = chokidar.watch(syncFolder, {
@@ -229,17 +227,9 @@ async function uploadFile(filePath) {
             const formData = new FormData();
             formData.append('file', fs.createReadStream(tempEncryptedFilePath));
 
-            // Ensure the file is attached
-            console.log('FormData:', formData.getHeaders());
-
-            // Add additional parameters
-            const maxDownloads = 1;
-            const expires = addDaysToDate(13);
-            const autoDelete = true;
-
-            formData.append('maxDownloads', maxDownloads);
-            formData.append('expires', expires);
-            formData.append('autoDelete', autoDelete);
+            formData.append('maxDownloads', 1);
+            formData.append('expires', addDaysToDate(13));
+            formData.append('autoDelete', 'true');
 
             const response = await axios.post(baseUrl, formData, {
                 headers: {
@@ -257,7 +247,7 @@ async function uploadFile(filePath) {
                     name: fileName,
                     created: response.data.created,
                     key: response.data.key,
-                    maxDownloads: response.data.maxDownloads || maxDownloads,
+                    maxDownloads: response.data.maxDownloads,
                     autoDelete: response.data.autoDelete,
                     expires: response.data.expires
                 };
@@ -288,7 +278,7 @@ function deleteFile(fileKey) {
         }
     })
         .then(response => {
-            if (response.data.success) {
+            if (response.status === 200) {
                 console.log(`File deleted: ${fileKey}`);
                 showNotification('File deleted successfully!', 'success');
 
@@ -305,7 +295,7 @@ function deleteFile(fileKey) {
                 });
                 listFiles(); 
             } else {
-                console.error('File deletion failed:', response.data);
+                console.error('File deletion failed.');
                 showNotification('File deletion failed. Please try again.', 'error');
             }
         })
